@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "next_id": 2,
+  "tasks": [
+    {
+      "id": 1,
+      "description": "Buy groceries",
+      "status": "todo",
+      "createdAt": "2026-11-23T21:07:50+00:00",
+      "updatedAt": "2026-11-23T21:07:50+00:00"
+    }
+  ]
+}

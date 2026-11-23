@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "task-tracker-cli"
-version = "0.1.0"
+version = "1.0.0"
 description = "A Python CLI to track tasks, with atomic JSON persistence and zero dependencies."
 readme = "README.md"
 requires-python = ">=3.10"

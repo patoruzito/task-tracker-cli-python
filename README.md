@@ -23,6 +23,10 @@ Built from the [roadmap.sh Task Tracker project](https://roadmap.sh/projects/tas
 - **Strictly typed and linted.** `mypy --strict` and `ruff` on every push.
 - **Zero runtime dependencies.** Standard library only.
 
+<div align="center">
+  <img src="docs/demo.gif" alt="task-cli demo" width="800">
+</div>
+
 ## Quick start
 
 ```bash

@@ -2,6 +2,7 @@
 
 import unittest
 from datetime import datetime, timezone
+from typing import Any
 
 from task_tracker.errors import InvalidTaskDataError
 from task_tracker.models import Status, Task
@@ -13,7 +14,7 @@ UPDATED = datetime(2026, 11, 22, 18, 2, 11, tzinfo=timezone.utc)
 
 def make_task(**overrides) -> Task:
     """Build a valid Task; any field can be overridden per test."""
-    fields = {
+    fields: dict[str, Any] = {
         "id": 1,
         "description": "Buy groceries",
         "status": Status.IN_PROGRESS,

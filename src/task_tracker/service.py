@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from typing import Protocol
 
 from task_tracker.errors import TaskNotFoundError, ValidationError
-from task_tracker.models import Status, Task
+from task_tracker.models import Status, StoreData, Task
 
 MAX_DESCRIPTION_LENGTH = 200
 """Upper bound for a "short description", as defined in the README contract."""
@@ -39,11 +39,11 @@ class Storage(Protocol):
         {"version": int, "next_id": int, "tasks": [task dicts]}
     """
 
-    def load(self) -> dict:
+    def load(self) -> StoreData:
         """Return the current data. A store with no file yet is empty."""
         ...
 
-    def save(self, data: dict) -> None:
+    def save(self, data: StoreData) -> None:
         """Persist the data, replacing what was stored before."""
         ...
 
@@ -230,7 +230,9 @@ class TaskService:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _modify(self, task_id: int, **changes: object) -> Change:
+    def _modify(
+        self, task_id: int, *, description: str | None = None, status: Status | None = None
+    ) -> Change:
         """
         Apply field changes to one task, honoring the no-op rule.
 
@@ -246,7 +248,11 @@ class TaskService:
         index = self._find_index(data, task_id)
         current = Task.from_dict(data["tasks"][index])
 
-        candidate = replace(current, **changes)
+        candidate = replace(
+            current,
+            description=current.description if description is None else description,
+            status=current.status if status is None else status,
+        )
         if candidate == current:
             return Change(task=current, changed=False)
 
@@ -256,7 +262,7 @@ class TaskService:
         return Change(task=updated, changed=True)
 
     @staticmethod
-    def _find_index(data: dict, task_id: int) -> int:
+    def _find_index(data: StoreData, task_id: int) -> int:
         """
         Return the position of a task in the raw list.
 

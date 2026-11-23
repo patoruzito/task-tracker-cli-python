@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 
 from task_tracker.errors import TaskNotFoundError, ValidationError
-from task_tracker.models import Status
+from task_tracker.models import Status, StoreData
 from task_tracker.service import MAX_DESCRIPTION_LENGTH, TaskService
 
 T0 = datetime(2026, 11, 22, 15, 0, 0, tzinfo=timezone.utc)
@@ -14,7 +14,7 @@ class InMemoryStorage:
     """Fake storage: same interface as JsonTaskStorage, no disk."""
 
     def __init__(self):
-        self.data = {"version": 1, "next_id": 1, "tasks": []}
+        self.data: StoreData = {"version": 1, "next_id": 1, "tasks": []}
         self.saves = 0
 
     def load(self):

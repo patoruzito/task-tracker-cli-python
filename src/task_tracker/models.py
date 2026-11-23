@@ -9,8 +9,26 @@ tasks into dictionaries and back.
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
+from typing import Any, TypedDict
 
 from task_tracker.errors import InvalidTaskDataError
+
+TaskDict = dict[str, Any]
+"""A task as stored in JSON: camelCase keys and primitive values."""
+
+
+class StoreData(TypedDict):
+    """
+    The whole content of the tasks file, as described in the README.
+
+    Why a TypedDict: the service and the storage exchange this dict.
+    Declaring its keys lets the type checker catch a typo such as
+    `data["nextId"]` before any test runs.
+    """
+
+    version: int
+    next_id: int
+    tasks: list[TaskDict]
 
 
 class Status(str, Enum):
@@ -51,7 +69,7 @@ class Task:
         if self.created_at.tzinfo is None or self.updated_at.tzinfo is None:
             raise InvalidTaskDataError("timestamps must be timezone-aware")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> TaskDict:
         """
         Serialize the task into a JSON-compatible dictionary.
 
@@ -70,7 +88,7 @@ class Task:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "Task":
+    def from_dict(cls, data: TaskDict) -> "Task":
         """
         Build a Task from a dictionary loaded from storage.
 

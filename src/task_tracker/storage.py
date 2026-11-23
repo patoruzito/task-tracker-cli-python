@@ -17,6 +17,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 from task_tracker.errors import (
     CorruptStorageError,
@@ -24,7 +25,7 @@ from task_tracker.errors import (
     StorageAccessError,
     UnsupportedSchemaError,
 )
-from task_tracker.models import Task
+from task_tracker.models import StoreData, Task
 
 SCHEMA_VERSION = 1
 """Version of the file format this program reads and writes."""
@@ -49,7 +50,7 @@ def resolve_path() -> Path:
     return Path(override) if override else Path.cwd() / DEFAULT_FILENAME
 
 
-def empty_state() -> dict:
+def empty_state() -> StoreData:
     """
     Return the data of a store with no tasks.
 
@@ -84,7 +85,7 @@ class JsonTaskStorage:
     # Storage protocol
     # ------------------------------------------------------------------
 
-    def load(self) -> dict:
+    def load(self) -> StoreData:
         """
         Read, migrate and validate the file.
 
@@ -118,11 +119,9 @@ class JsonTaskStorage:
         except json.JSONDecodeError as e:
             raise self._corrupt("invalid JSON") from e
 
-        data = self._migrate(raw)
-        self._validate(data)
-        return data
+        return self._validate(self._migrate(raw))
 
-    def save(self, data: dict) -> None:
+    def save(self, data: StoreData) -> None:
         """
         Write the data atomically.
 
@@ -170,7 +169,7 @@ class JsonTaskStorage:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _migrate(self, raw: object) -> dict:
+    def _migrate(self, raw: object) -> dict[str, Any]:
         """
         Bring older file formats up to the current schema, in memory.
 
@@ -210,7 +209,7 @@ class JsonTaskStorage:
             )
         return raw
 
-    def _validate(self, data: dict) -> None:
+    def _validate(self, data: dict[str, Any]) -> StoreData:
         """
         Check that the data is internally consistent.
 
@@ -251,6 +250,8 @@ class JsonTaskStorage:
 
         if seen and next_id <= max(seen):
             raise self._corrupt("'next_id' must be greater than every task id")
+        # Why cast: every key was just checked by hand; tell the type checker.
+        return cast(StoreData, data)
 
     def _corrupt(self, reason: str) -> CorruptStorageError:
         """

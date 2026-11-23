@@ -13,7 +13,7 @@ from task_tracker.errors import (
     StorageAccessError,
     UnsupportedSchemaError,
 )
-from task_tracker.models import Status
+from task_tracker.models import Status, StoreData
 from task_tracker.service import TaskService
 from task_tracker.storage import (
     ENV_VAR,
@@ -64,7 +64,7 @@ class TestMissingFile(StorageTestCase):
 
 class TestRoundTrip(StorageTestCase):
     def test_save_then_load(self):
-        data = {"version": 1, "next_id": 2, "tasks": [TASK]}
+        data: StoreData = {"version": 1, "next_id": 2, "tasks": [TASK]}
         self.storage.save(data)
         self.assertEqual(self.storage.load(), data)
 

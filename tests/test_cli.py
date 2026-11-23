@@ -43,7 +43,7 @@ class CliTestCase(unittest.TestCase):
             try:
                 code = main(list(argv))
             except SystemExit as e:  # argparse exits on usage errors
-                code = e.code
+                code = e.code if isinstance(e.code, int) else 1
         return code, out.getvalue(), err.getvalue()
 
     def assert_ok(self, argv, expected_stdout):

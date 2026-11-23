@@ -227,9 +227,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     args = build_parser().parse_args(argv)  # exits with 2 on usage errors
     service = TaskService(JsonTaskStorage(resolve_path()))
-
+    handler: Handler = args.handler  # argparse attributes are untyped
     try:
-        return args.handler(service, args)
+        return handler(service, args)
     except TaskTrackerError as e:
         print(f"error: {e}", file=sys.stderr)
         return e.exit_code

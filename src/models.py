@@ -1,20 +1,25 @@
 """
 Data models for the Task Tracker application.
 
-This module defines the core domain entities and serialization logic
-used to represent and persist tasks.
+This module defines the core domain entities and their serialization
+logic. It knows nothing about files or the command line: it only turns
+tasks into dictionaries and back.
 """
-# models.py
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+from errors import InvalidTaskDataError
+
+
 class Status(str, Enum):
     """
-    Represents the valid workflow states for a task.
+    Valid workflow states for a task.
 
-    Inherits from `str` and `Enum` to allow seamless string comparisons
-    and direct JSON serialization while enforcing strict state values.
+    Inherits from `str` so values serialize to JSON directly. Always use
+    `.value` to get the plain string: since Python 3.11, `str(Status.TODO)`
+    returns "Status.TODO", not "todo".
     """
 
     TODO = "todo"
@@ -25,64 +30,66 @@ class Status(str, Enum):
 @dataclass
 class Task:
     """
-    Represents an individual task item within the system.
-
-    Uses the `@dataclass` decorator to automatically generate boilerplate
-    special methods (`__init__`, `__repr__`, and `__eq__`) based on the
-    defined type annotations.
+    A single task in the system.
 
     Attributes:
-        id: Unique numeric identifier for the task.
-        description: Brief summary of what needs to be done.
+        id: Unique numeric identifier. Never reused.
+        description: Short summary of what needs to be done.
         status: Current lifecycle state of the task.
-        created_at: Timestamp indicating when the task was created.
-        update_at: Timestamp indicating the last modification to the task.
+        created_at: When the task was created (timezone-aware, UTC).
+        updated_at: When the task was last changed (timezone-aware, UTC).
     """
 
     id: int
     description: str
     status: Status
     created_at: datetime
-    update_at: datetime
+    updated_at: datetime
+
+    def __post_init__(self) -> None:
+        """Reject naive timestamps: the contract requires UTC with offset."""
+        if self.created_at.tzinfo is None or self.updated_at.tzinfo is None:
+            raise InvalidTaskDataError("timestamps must be timezone-aware")
 
     def to_dict(self) -> dict:
         """
-        Serializes the Task instance into a JSON-compatible dictionary.
+        Serialize the task into a JSON-compatible dictionary.
 
-        Converts complex Python types (`Status` enum and `datetime` objects)
-        into primitive strings and maps attribute names to camelCase keys.
+        Keys follow the storage contract (camelCase) and timestamps use
+        ISO 8601 with second precision.
 
         Returns:
-            A dictionary representation of the task ready for JSON persistence.
+            A dictionary ready for JSON persistence.
         """
         return {
             "id": self.id,
             "description": self.description,
             "status": self.status.value,
-            "createdAt": self.created_at.isoformat(),
-            "updateAt": self.update_at.isoformat(),
+            "createdAt": self.created_at.isoformat(timespec="seconds"),
+            "updatedAt": self.updated_at.isoformat(timespec="seconds"),
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Task":
         """
-        Deserializes a dictionary into a new Task instance.
-
-        Uses the `@classmethod` decorator as an alternative constructor (factory
-        method), allowing instantiation directly from raw dictionary data
-        without requiring an existing `Task` object.
+        Build a Task from a dictionary loaded from storage.
 
         Args:
-            data: A dictionary containing raw task fields, typically loaded
-                from a JSON source.
+            data: Raw task fields, typically from the JSON file.
 
         Returns:
-            A newly instantiated `Task` object with parsed types.
+            A new Task with parsed types.
+
+        Raises:
+            InvalidTaskDataError: A field is missing or has an invalid value.
         """
-        return cls(
-            id=data["id"],
-            description=data["description"],
-            status=Status(data["status"]),
-            created_at=datetime.fromisoformat(data["createdAt"]),
-            update_at=datetime.fromisoformat(data["updateAt"]),
-        )
+        try:
+            return cls(
+                id=data["id"],
+                description=data["description"],
+                status=Status(data["status"]),
+                created_at=datetime.fromisoformat(data["createdAt"]),
+                updated_at=datetime.fromisoformat(data["updatedAt"]),
+            )
+        except (KeyError, ValueError, TypeError) as e:
+            raise InvalidTaskDataError(f"invalid task data: {data!r}") from e

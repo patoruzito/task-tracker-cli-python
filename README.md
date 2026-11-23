@@ -6,15 +6,22 @@
 
 A Python CLI with atomic JSON persistence, a layered architecture, and zero external dependencies.
 
+[![CI](https://github.com/patoruzito/task-tracker-cli-python/actions/workflows/ci.yml/badge.svg)](https://github.com/patoruzito/task-tracker-cli-python/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
-![Status](https://img.shields.io/badge/status-phase%200%20%C2%B7%20design-orange)
+![Typed](https://img.shields.io/badge/mypy-strict-2A6DB2)
+![Version](https://img.shields.io/badge/version-1.0.0-informational)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 </div>
 
+Built from the [roadmap.sh Task Tracker project](https://roadmap.sh/projects/task-tracker) as a portfolio piece: a small tool written with production habits.
 
-Based on the [roadmap.sh Task Tracker project](https://roadmap.sh/projects/task-tracker).
+- **Never loses data.** Atomic writes, and a file it cannot read is reported, never overwritten.
+- **Layered.** Domain, service, storage and CLI are decoupled through dependency injection.
+- **Tested.** Unit, integration and end-to-end tests, run on Python 3.10–3.13 in CI.
+- **Strictly typed and linted.** `mypy --strict` and `ruff` on every push.
+- **Zero runtime dependencies.** Standard library only.
 
 ## Quick start
 
@@ -27,13 +34,37 @@ task-cli mark-done 1              # Task 1 marked as done
 
 ## Table of contents
 
-1. [Data model](#1-data-model)
-2. [File format](#2-file-format)
-3. [Commands](#3-commands)
-4. [Output and exit codes](#4-output-and-exit-codes)
-5. [Errors](#5-errors)
-6. [Out of scope](#6-out-of-scope)
-7. [Requirements](#7-requirements)
+- [Installation](#installation)
+- [1. Data model](#1-data-model)
+- [2. File format](#2-file-format)
+- [3. Commands](#3-commands)
+- [4. Output and exit codes](#4-output-and-exit-codes)
+- [5. Errors](#5-errors)
+- [6. Architecture](#6-architecture)
+- [7. Design decisions](#7-design-decisions)
+- [8. Development](#8-development)
+- [9. Out of scope](#9-out-of-scope)
+- [License](#license)
+
+---
+
+## Installation
+
+Requires **Python 3.10 or later**.
+
+```bash
+git clone https://github.com/patoruzito/task-tracker-cli-python.git
+cd task-tracker-cli-python
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -e .
+task-cli --help
+```
+
+Without installing, from the project root: `PYTHONPATH=src python -m task_tracker --help`.
+
+> [!TIP]
+> The contract below (sections 1–5) is the specification: it is what the program promises, and the tests check every line of it. Any change in behavior starts by updating it.
 
 ---
 
@@ -111,6 +142,7 @@ Tasks are stored in `tasks.json` in the **current directory**. A different path 
 | **Atomic writes** | Data is written to a temporary file that replaces the original in a single step. If the process is interrupted, the file is left in either its previous or its new version, never half-written. |
 | **Corrupt file** | If the JSON cannot be parsed or does not match the schema, the program exits with an error and **does not overwrite it**. |
 | **Unknown version** | A file with a `version` higher than the supported one is rejected with an error and left untouched. |
+| **Older format** | A bare list of tasks (the format without `version` or `next_id`) is migrated in memory and written in the current format on the next save. |
 | **Encoding** | UTF-8, indented with 2 spaces. |
 
 > [!CAUTION]
@@ -144,6 +176,13 @@ Changes a task's description.
 ```bash
 $ task-cli update 1 "Buy groceries and cook dinner"
 Task 1 updated successfully
+```
+
+If the new description is the same as the current one (after trimming spaces), nothing changes:
+
+```bash
+$ task-cli update 1 "Buy groceries and cook dinner"
+Task 1 already has that description
 ```
 
 ### `delete <id>`
@@ -200,9 +239,9 @@ $ task-cli list done
 No tasks found
 ```
 
-### `--help`
+### `--help` / `--version`
 
-`task-cli --help` and `task-cli <command> --help` show usage help.
+`task-cli --help` and `task-cli <command> --help` show usage help. `task-cli --version` prints the installed version.
 
 ---
 
@@ -216,7 +255,8 @@ No tasks found
 |-----------|---------|----------|
 | `0` | Success, including no-ops | Task added, empty list, `mark-done` on a task already `done` |
 | `1` | Runtime error | Task not found, invalid description, corrupt file |
-| `2` | Incorrect usage | Unknown command, missing arguments, non-numeric `id`, invalid `list` filter |
+| `2` | Incorrect usage | Unknown command, missing arguments, `id` that is not a positive integer, invalid `list` filter |
+| `130` | Interrupted | Ctrl+C while the command was running |
 
 ---
 
@@ -229,12 +269,101 @@ No tasks found
 | Description longer than 200 characters | `error: description exceeds 200 characters` | 1 |
 | Corrupt file | `error: cannot read tasks.json (invalid JSON); file left untouched` | 1 |
 | Unsupported file version | `error: tasks.json uses schema version 2; this program supports up to 1` | 1 |
-| No write permission | `error: cannot write tasks.json: permission denied` | 1 |
-| Unknown command, missing arguments, non-numeric `id` or invalid filter | `argparse` usage message | 2 |
+| No write permission | `error: cannot write tasks.json: Permission denied` | 1 |
+| Unknown command, missing arguments, invalid `id` or invalid filter | `argparse` usage message | 2 |
 
 ---
 
-## 6. Out of scope
+## 6. Architecture
+
+Dependencies point inward: the CLI knows the service, the service knows the model, and the model knows nothing else. The storage is injected into the service through a `Protocol`, so the service never imports it.
+
+```mermaid
+flowchart LR
+    U([User]) -->|argv| CLI["cli.py<br/>parse args, print, exit codes"]
+    CLI --> SVC["service.py<br/>business rules"]
+    SVC --> MOD["models.py<br/>Task, Status"]
+    SVC -. Storage protocol .-> STO["storage.py<br/>atomic JSON"]
+    STO --> MOD
+    STO --> F[(tasks.json)]
+    ERR["errors.py<br/>exception hierarchy"]
+```
+
+| Module | Responsibility | Knows about |
+|--------|----------------|-------------|
+| `models.py` | `Task` and `Status`, conversion to and from dicts | Nothing in the project except `errors` |
+| `service.py` | Every rule: IDs, validation, the no-op rule, `updatedAt` | Models and the `Storage` protocol |
+| `storage.py` | Reading, migrating, validating and atomically writing the file | Models |
+| `cli.py` | Arguments, output formatting, exceptions to exit codes | Everything; it wires the pieces together |
+| `errors.py` | One exception hierarchy under `TaskTrackerError` | Nothing |
+
+### Project structure
+
+```
+task-tracker-cli-python/
+├── pyproject.toml          # metadata, entry point, tool configuration
+├── src/task_tracker/
+│   ├── __init__.py
+│   ├── __main__.py         # python -m task_tracker
+│   ├── cli.py
+│   ├── errors.py
+│   ├── models.py
+│   ├── service.py
+│   └── storage.py
+├── tests/
+│   ├── test_models.py      # unit
+│   ├── test_service.py     # unit, in-memory storage and fake clock
+│   ├── test_storage.py     # integration, real temp directory
+│   └── test_cli.py         # contract messages + end-to-end subprocess
+└── .github/workflows/ci.yml
+```
+
+---
+
+## 7. Design decisions
+
+| Decision | Why |
+|----------|-----|
+| **Atomic writes** (temp file + `fsync` + `os.replace`) | Writing in place truncates the file first. An interrupted write would lose every task. |
+| **A file it cannot read is never overwritten** | Replacing a corrupt file with an empty list would silently destroy the user's data. |
+| **`next_id` stored in the file** | With `max(id) + 1`, deleting the last task and adding a new one would reuse its ID. |
+| **Versioned schema with migrations** | The format can evolve. A file from the earlier bare-list format is migrated in memory; a newer version is refused. |
+| **No-op rule** | `updatedAt` records real changes, not attempts. Repeating a command succeeds without touching anything. |
+| **Dependency injection** (storage and clock) | The service is tested without disk and with a frozen clock: fast and deterministic. |
+| **UTC timestamps with offset, second precision** | Naive local times are ambiguous across time zones and daylight saving changes. |
+| **One `except` in the CLI** | Every expected failure is a `TaskTrackerError`, mapped to stderr and an exit code in a single place. |
+
+---
+
+## 8. Development
+
+```bash
+pip install -e ".[dev]"          # ruff, mypy, coverage
+
+python -m unittest -v            # all tests
+ruff check .                     # lint
+ruff format .                    # format
+mypy                             # strict type checking
+coverage run -m unittest && coverage report   # fails under 90%
+```
+
+Before every commit, all of these must pass:
+
+```bash
+ruff check . && ruff format --check . && mypy && python -m unittest
+```
+
+CI runs the same checks on every push, on Python 3.10, 3.11, 3.12 and 3.13.
+
+Tasks are stored in `./tasks.json` by default. Set `TASK_CLI_FILE` to use another file, for example while trying things out:
+
+```bash
+TASK_CLI_FILE=/tmp/scratch.json task-cli add "Try something"
+```
+
+---
+
+## 9. Out of scope
 
 Deliberate decisions to keep the project focused:
 
@@ -249,10 +378,9 @@ Deliberate decisions to keep the project focused:
 
 ---
 
-## 7. Requirements
+## License
 
-- Python 3.10 or later.
-- No runtime dependencies: standard library only (`argparse`, `json`, `os`, `pathlib`, `tempfile`, `datetime`, `dataclasses`, `enum`).
+[MIT](LICENSE) © Leonardo Lopez Oroño
 
 ---
 

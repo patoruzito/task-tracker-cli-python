@@ -3,8 +3,8 @@
 import unittest
 from datetime import datetime, timezone
 
-from errors import InvalidTaskDataError
-from models import Status, Task
+from task_tracker.errors import InvalidTaskDataError
+from task_tracker.models import Status, Task
 
 # Second precision on purpose: the contract stores seconds only.
 CREATED = datetime(2026, 11, 22, 15, 24, 0, tzinfo=timezone.utc)

@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from errors import InvalidTaskDataError
+from task_tracker.errors import InvalidTaskDataError
 
 
 class Status(str, Enum):

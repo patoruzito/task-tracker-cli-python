@@ -70,6 +70,8 @@ class JsonTaskStorage:
 
     def __init__(self, path: Path) -> None:
         """
+        Point the storage at a file.
+
         Args:
             path: File to read and write. Its parent directory must exist.
 
@@ -109,9 +111,7 @@ class JsonTaskStorage:
         except UnicodeDecodeError as e:
             raise self._corrupt("not valid UTF-8") from e
         except OSError as e:
-            raise StorageAccessError(
-                f"cannot read {self.path.name}: {e.strerror or e}"
-            ) from e
+            raise StorageAccessError(f"cannot read {self.path.name}: {e.strerror or e}") from e
 
         try:
             raw = json.loads(text)
@@ -149,9 +149,7 @@ class JsonTaskStorage:
                 dir=self.path.parent, prefix=f".{self.path.name}.", suffix=".tmp"
             )
         except OSError as e:
-            raise StorageAccessError(
-                f"cannot write {self.path.name}: {e.strerror or e}"
-            ) from e
+            raise StorageAccessError(f"cannot write {self.path.name}: {e.strerror or e}") from e
 
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -165,9 +163,7 @@ class JsonTaskStorage:
             # not an Exception. The temp file must be removed either way.
             Path(tmp_name).unlink(missing_ok=True)
             if isinstance(e, OSError):
-                raise StorageAccessError(
-                    f"cannot write {self.path.name}: {e.strerror or e}"
-                ) from e
+                raise StorageAccessError(f"cannot write {self.path.name}: {e.strerror or e}") from e
             raise
 
     # ------------------------------------------------------------------
@@ -263,6 +259,4 @@ class JsonTaskStorage:
         Why it returns instead of raising: callers write `raise ... from e`,
         which keeps the original error as the cause for debugging.
         """
-        return CorruptStorageError(
-            f"cannot read {self.path.name} ({reason}); file left untouched"
-        )
+        return CorruptStorageError(f"cannot read {self.path.name} ({reason}); file left untouched")

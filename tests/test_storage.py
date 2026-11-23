@@ -5,6 +5,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from unittest import mock
 
 from task_tracker.errors import (
@@ -80,16 +81,20 @@ class TestAtomicWrite(StorageTestCase):
         self.storage.save({"version": 1, "next_id": 2, "tasks": [TASK]})
         original = self.path.read_text(encoding="utf-8")
 
-        with mock.patch("task_tracker.storage.json.dump", side_effect=RuntimeError):
-            with self.assertRaises(RuntimeError):
-                self.storage.save(empty_state())
+        with (
+            mock.patch("task_tracker.storage.json.dump", side_effect=RuntimeError),
+            self.assertRaises(RuntimeError),
+        ):
+            self.storage.save(empty_state())
 
         self.assert_untouched(original)
 
     def test_failure_leaves_no_temp_files(self):
-        with mock.patch("task_tracker.storage.json.dump", side_effect=KeyboardInterrupt):
-            with self.assertRaises(KeyboardInterrupt):
-                self.storage.save(empty_state())
+        with (
+            mock.patch("task_tracker.storage.json.dump", side_effect=KeyboardInterrupt),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            self.storage.save(empty_state())
         self.assertEqual(list(self.dir.iterdir()), [])
 
     def test_success_leaves_no_temp_files(self):
@@ -98,7 +103,7 @@ class TestAtomicWrite(StorageTestCase):
 
 
 class TestCorruptFile(StorageTestCase):
-    CASES = {
+    CASES: ClassVar[dict[str, object]] = {
         "invalid json": "{not json",
         "empty file": "",
         "top level is a string": '"hello"',
@@ -108,7 +113,9 @@ class TestCorruptFile(StorageTestCase):
         "tasks is not a list": {"version": 1, "next_id": 1, "tasks": {}},
         "task is not an object": {"version": 1, "next_id": 2, "tasks": [1]},
         "task has bad status": {
-            "version": 1, "next_id": 2, "tasks": [{**TASK, "status": "pending"}]
+            "version": 1,
+            "next_id": 2,
+            "tasks": [{**TASK, "status": "pending"}],
         },
         "duplicate ids": {"version": 1, "next_id": 2, "tasks": [TASK, TASK]},
         "next_id not above ids": {"version": 1, "next_id": 1, "tasks": [TASK]},

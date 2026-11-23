@@ -11,9 +11,10 @@ decides how to persist them.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Callable, Protocol
+from typing import Protocol
 
 from task_tracker.errors import TaskNotFoundError, ValidationError
 from task_tracker.models import Status, Task
@@ -38,9 +39,13 @@ class Storage(Protocol):
         {"version": int, "next_id": int, "tasks": [task dicts]}
     """
 
-    def load(self) -> dict: ...
+    def load(self) -> dict:
+        """Return the current data. A store with no file yet is empty."""
+        ...
 
-    def save(self, data: dict) -> None: ...
+    def save(self, data: dict) -> None:
+        """Persist the data, replacing what was stored before."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -84,6 +89,8 @@ class TaskService:
 
     def __init__(self, storage: Storage, clock: Clock = utc_now) -> None:
         """
+        Wire the service to its dependencies.
+
         Args:
             storage: Backend that loads and saves the raw data.
             clock: Source of the current time. Defaults to UTC now.
@@ -286,7 +293,5 @@ class TaskService:
         if not clean:
             raise ValidationError("description cannot be empty")
         if len(clean) > MAX_DESCRIPTION_LENGTH:
-            raise ValidationError(
-                f"description exceeds {MAX_DESCRIPTION_LENGTH} characters"
-            )
+            raise ValidationError(f"description exceeds {MAX_DESCRIPTION_LENGTH} characters")
         return clean

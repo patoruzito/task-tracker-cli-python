@@ -10,7 +10,79 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Leonardo Lopez Oroño" }]
-dependencies = []
+dependencies = []  # runtime: standard library only
+
+[project.optional-dependencies]
+# Development tools only. Never needed to run the program.
+dev = ["ruff>=0.6", "mypy>=1.10", "coverage[toml]>=7.4"]
 
 [project.scripts]
 task-cli = "task_tracker.cli:main"
+
+# ----------------------------------------------------------------------
+# Ruff: linter + formatter
+# ----------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle: basic style errors
+    "F",       # pyflakes: unused imports/variables, undefined names
+    "I",       # isort: import order
+    "B",       # bugbear: likely bugs (mutable defaults, bare raise...)
+    "UP",      # pyupgrade: modern syntax for the target version
+    "SIM",     # simplify: needlessly complex code
+    "RUF",     # ruff-specific checks
+    "D",       # pydocstyle: docstrings
+]
+ignore = [
+    "D105", "D107",  # docstrings in magic methods / __init__ (documented on the class)
+    "D203",          # conflicts with D211 (no blank line before class docstring)
+    "D212", "D213",  # summary on first or second line: both styles accepted
+    "D413",          # blank line after last docstring section: noise
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test names already say what they test; docstrings there would be noise.
+"tests/**" = ["D"]
+# Command handlers are one-liners documented as a group in a comment.
+"src/task_tracker/cli.py" = ["D103"]
+
+# ----------------------------------------------------------------------
+# Mypy: static type checking
+# ----------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.10"
+files = ["src", "tests"]
+strict = true
+warn_unreachable = true
+pretty = true
+
+[[tool.mypy.overrides]]
+# Tests may skip annotations; their asserts are the specification.
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+# ----------------------------------------------------------------------
+# Coverage
+# ----------------------------------------------------------------------
+[tool.coverage.run]
+source = ["task_tracker"]
+branch = true
+# Only ever runs inside the end-to-end subprocess, which is not measured.
+omit = ["*/task_tracker/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 90
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "def __repr__",
+    "\\.\\.\\.$",  # Protocol method bodies
+]

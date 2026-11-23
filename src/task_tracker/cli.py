@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable, Sequence
 from importlib.metadata import PackageNotFoundError, version
-from typing import Callable, Sequence
 
 from task_tracker.errors import TaskTrackerError
 from task_tracker.models import Status, Task

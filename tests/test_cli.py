@@ -17,6 +17,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import ClassVar
 from unittest import mock
 
 import task_tracker
@@ -132,7 +133,7 @@ class TestRuntimeErrors(CliTestCase):
 class TestUsageErrors(CliTestCase):
     """Exit 2, argparse usage message on stderr."""
 
-    CASES = {
+    CASES: ClassVar[dict[str, list[str]]] = {
         "no command": [],
         "unknown command": ["borrar", "1"],
         "add without description": ["add"],
@@ -170,8 +171,12 @@ class TestEndToEnd(unittest.TestCase):
     def run_program(self, *argv):
         return subprocess.run(
             [sys.executable, "-m", "task_tracker", *argv],
-            cwd=self.cwd, env=self.env, capture_output=True, text=True,
-            encoding="utf-8", timeout=10,
+            cwd=self.cwd,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=10,
         )
 
     def test_full_workflow_writes_contract_json(self):
@@ -182,9 +187,7 @@ class TestEndToEnd(unittest.TestCase):
         self.assertEqual(data["version"], 1)
         self.assertEqual(data["next_id"], 2)
         task = data["tasks"][0]
-        self.assertEqual(
-            set(task), {"id", "description", "status", "createdAt", "updatedAt"}
-        )
+        self.assertEqual(set(task), {"id", "description", "status", "createdAt", "updatedAt"})
         self.assertEqual(task["description"], "Comprar café ☕")
         self.assertEqual(task["status"], "done")
 

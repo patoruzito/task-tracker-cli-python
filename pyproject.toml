@@ -9,7 +9,7 @@ description = "A Python CLI to track tasks, with atomic JSON persistence and zer
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "Leonardo Lopez Oroño" }]
+authors = [{ name = "Leonardo Lopez" }]
 dependencies = []  # runtime: standard library only
 
 [project.optional-dependencies]

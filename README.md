@@ -384,7 +384,7 @@ Deliberate decisions to keep the project focused:
 
 ## License
 
-[MIT](LICENSE) © Leonardo Lopez Oroño
+[MIT](LICENSE) © Leonardo Lopez
 
 ---
 
